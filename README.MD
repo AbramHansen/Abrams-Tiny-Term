@@ -1,9 +1,9 @@
-* Abe's Tiny Term *
+# Abe's Tiny Term
 
-** Currently Under Development and Non-Functional **
+## Currently Under Development and Non-Functional
 
 A hardware accelerated terminal emulator designed for small resolutions and font sizes.
 
-MIT Licence
+[MIT Licence](/LICENCE)
 
 By Abram Hansen
