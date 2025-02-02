@@ -2,9 +2,11 @@
 #include <SDL3/SDL_main.h>
 #include <string>
 
+#include "../include/ascii_font.h"
+
 constexpr int screenWidth{128};
 constexpr int screenHeight{64};
-std::string windowTitle{"Tiny Term"};
+std::string windowTitle{"Abram's Tiny Term"};
 
 bool init();
 bool loadMedia();
@@ -12,9 +14,10 @@ void close();
 void mainLoop();
 
 SDL_Window* gWindow{nullptr};
-SDL_Surface* gScreenSurface{nullptr};
-SDL_Surface* gSplashImage{nullptr};
+SDL_Texture* gSplashImage{nullptr};
+SDL_Renderer* gRenderer{nullptr};
 
+AsciiFont gTomThumb("../media/fonts/tom-thumb.bdf");
 
 int main(int argc, char* args[]){
     int exitCode{0};
@@ -45,13 +48,13 @@ bool init(){
         SDL_Log("SDL could not initialize! SDL error: %s\n", SDL_GetError());
         success = false;
     } else {
-        //create window
-        if(gWindow = SDL_CreateWindow(windowTitle.c_str(), screenWidth, screenHeight, 0); gWindow == nullptr){
+        if(!SDL_CreateWindowAndRenderer(windowTitle.c_str(), screenWidth, screenHeight, 0, &gWindow, &gRenderer)){
             SDL_Log("Window could not be created! SDL error: %s\n", SDL_GetError());
             success = false;
         } else {
-            gScreenSurface = SDL_GetWindowSurface(gWindow);
+            gTomThumb.setRenderer(gRenderer);
         }
+            
     }
 
     return success;
@@ -59,10 +62,26 @@ bool init(){
 
 bool loadMedia(){
     bool success{ true };
-    
+
+    SDL_Surface* splashImageSurface;
     std::string splashImagePath = "../media/textures/tiny_term.bmp";
-    if(gSplashImage = SDL_LoadBMP(splashImagePath.c_str()); gSplashImage == nullptr){
+    if(splashImageSurface = SDL_LoadBMP(splashImagePath.c_str()); splashImageSurface == nullptr){
         SDL_Log("Unable to load image %s! SDL Error: %s\n", splashImagePath.c_str(), SDL_GetError());
+        success = false;
+    } else {
+        if(gSplashImage = SDL_CreateTextureFromSurface(gRenderer, splashImageSurface); gSplashImage == nullptr){
+            SDL_Log( "Unable to create texture from loaded pixels! SDL error: %s\n", SDL_GetError() );
+            success = false;
+        }
+
+        SDL_DestroySurface(splashImageSurface);
+    }
+
+    if(gTomThumb.load()){
+        SDL_Log("Font Width: %i\n", gTomThumb.getWidth());
+        SDL_Log("Font Height: %i\n", gTomThumb.getHeight());
+    } else {
+        SDL_Log("Unable to load font!");
         success = false;
     }
 
@@ -70,12 +89,11 @@ bool loadMedia(){
 }
 
 void close(){
-    SDL_DestroySurface(gSplashImage);
+    SDL_DestroyTexture(gSplashImage);
     gSplashImage = nullptr;
 
     SDL_DestroyWindow(gWindow);
     gWindow = nullptr;
-    gScreenSurface = nullptr;
 
     SDL_Quit();
 }
@@ -93,10 +111,19 @@ void mainLoop(){
                 quit = true;
         }
         
-        SDL_FillSurfaceRect(gScreenSurface, nullptr, SDL_MapSurfaceRGB(gScreenSurface, 0xFF, 0xFF, 0xFF));
+        SDL_SetRenderDrawColor(gRenderer, 0x00, 0x00, 0x00, 0x00);
+        SDL_RenderClear(gRenderer);
+        //SDL_RenderTexture(gRenderer, gSplashImage, nullptr, nullptr);
+        int x = 0;
+        int y = 0;
+        for(char c = ' '; c < 127; c++, x += gTomThumb.getWidth() + 1){
+            if(x > 124){
+                x = 0;
+                y += gTomThumb.getHeight();
+            }
+            gTomThumb.render(x,y,c);
+        }
 
-        SDL_BlitSurface(gSplashImage, nullptr, gScreenSurface, nullptr);
-
-        SDL_UpdateWindowSurface(gWindow);
+        SDL_RenderPresent(gRenderer);
     }
 }
