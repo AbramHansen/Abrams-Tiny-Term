@@ -1,12 +1,15 @@
 #include "../include/ascii_font.h"
 
-AsciiFont::AsciiFont(std::string bdfFilepath, int paddingX, int paddingY){
+AsciiFont::AsciiFont(int paddingX, int paddingY){
     this->renderer = nullptr;
-    this->bdfFilepath = bdfFilepath;
     this->paddingX = paddingX;
     this->paddingY = paddingY;
     this->width = 0;
     this->height = 0;
+}
+
+void AsciiFont::setFilepath(std::string filepath){
+    bdfFilepath = filepath;
 }
 
 void AsciiFont::setRenderer(SDL_Renderer* renderer){
@@ -149,12 +152,20 @@ int AsciiFont::getHeight(){
 }
 
 bool AsciiFont::render(float x, float y, char character){
-    bool success = true;
     if(character > 32 && character < 127) {
         SDL_FRect destination = {x,y, static_cast<float>(width), static_cast<float>(height)};
-        SDL_RenderTexture(renderer, characters[character - 32], nullptr, &destination);
+       
+        if(characters[character - 32] == nullptr){
+            SDL_Log("Error, Character %c texture is nullptr!\n", character);
+            return false;
+        }
+
+        if(!SDL_RenderTexture(renderer, characters[character - 32], nullptr, &destination)){
+            SDL_Log("Error rendering chacter %c: %s\n", character, SDL_GetError());
+            return false;
+        }
     } else {
-        success = false;
+        return false;
     }
-    return success;
+    return true; 
 }

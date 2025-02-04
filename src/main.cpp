@@ -1,99 +1,62 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <string>
+#include <vector>
 
-#include "../include/ascii_font.h"
-
-constexpr int screenWidth{128};
-constexpr int screenHeight{64};
-std::string windowTitle{"Abram's Tiny Term"};
+#include "../include/terminal.h"
 
 bool init();
-bool loadMedia();
-void close();
 void mainLoop();
+void close();
 
-SDL_Window* gWindow{nullptr};
-SDL_Texture* gSplashImage{nullptr};
-SDL_Renderer* gRenderer{nullptr};
+int windowWidth = 128;
+int windowHeight = 64;
+std::string windowTitle = "Abram's Tiny Term";
 
-AsciiFont gTomThumb("../media/fonts/tom-thumb.bdf");
+SDL_Window* window{nullptr};
+SDL_Renderer* renderer{nullptr};
+Terminal* term{nullptr};
 
 int main(int argc, char* args[]){
-    int exitCode{0};
-
-    SDL_Log("Starting %s...\n", windowTitle.c_str());
+    SDL_Log("Starting Abram's Tiny Term\n");
     
     if(!init()){
-        SDL_Log("Init failure!\n");
-        exitCode = 1;
-    } else {
-        if(!loadMedia()){
-            SDL_Log("Load Media failure!\n");
-            exitCode=2;
-        } else {
-            mainLoop(); 
-        }
+        SDL_Log("init failure!\n");
+        return 1;
     }
+
+    mainLoop();
 
     close();
 
-    return exitCode;
+    return 0;
 }
 
 bool init(){
-    bool success{ true };
-
     if(!SDL_Init(SDL_INIT_VIDEO)){
         SDL_Log("SDL could not initialize! SDL error: %s\n", SDL_GetError());
-        success = false;
-    } else {
-        if(!SDL_CreateWindowAndRenderer(windowTitle.c_str(), screenWidth, screenHeight, 0, &gWindow, &gRenderer)){
-            SDL_Log("Window could not be created! SDL error: %s\n", SDL_GetError());
-            success = false;
-        } else {
-            gTomThumb.setRenderer(gRenderer);
-        }
-            
+        return false;
     }
 
-    return success;
-}
-
-bool loadMedia(){
-    bool success{ true };
-
-    SDL_Surface* splashImageSurface;
-    std::string splashImagePath = "../media/textures/tiny_term.bmp";
-    if(splashImageSurface = SDL_LoadBMP(splashImagePath.c_str()); splashImageSurface == nullptr){
-        SDL_Log("Unable to load image %s! SDL Error: %s\n", splashImagePath.c_str(), SDL_GetError());
-        success = false;
-    } else {
-        if(gSplashImage = SDL_CreateTextureFromSurface(gRenderer, splashImageSurface); gSplashImage == nullptr){
-            SDL_Log( "Unable to create texture from loaded pixels! SDL error: %s\n", SDL_GetError() );
-            success = false;
-        }
-
-        SDL_DestroySurface(splashImageSurface);
+    if(!SDL_CreateWindowAndRenderer(windowTitle.c_str(), windowWidth, windowHeight, 0, &window, &renderer)){
+        SDL_Log("Window or renderer could not be created! SDL error: %s\n", SDL_GetError());
+        return false;
     }
 
-    if(gTomThumb.load()){
-        SDL_Log("Font Width: %i\n", gTomThumb.getWidth());
-        SDL_Log("Font Height: %i\n", gTomThumb.getHeight());
-    } else {
-        SDL_Log("Unable to load font!");
-        success = false;
+    term = new Terminal(renderer, windowWidth, windowHeight);
+    if(!term->init()){
+        SDL_Log("Failed to initialize terminal!\n");
+        return false;
     }
 
-    return success;
+    return true;
 }
 
 void close(){
-    SDL_DestroyTexture(gSplashImage);
-    gSplashImage = nullptr;
-
-    SDL_DestroyWindow(gWindow);
-    gWindow = nullptr;
+    SDL_DestroyRenderer(renderer);
+    renderer = nullptr;
+    SDL_DestroyWindow(window);
+    window = nullptr;
 
     SDL_Quit();
 }
@@ -111,19 +74,11 @@ void mainLoop(){
                 quit = true;
         }
         
-        SDL_SetRenderDrawColor(gRenderer, 0x00, 0x00, 0x00, 0x00);
-        SDL_RenderClear(gRenderer);
-        //SDL_RenderTexture(gRenderer, gSplashImage, nullptr, nullptr);
-        int x = 0;
-        int y = 0;
-        for(char c = ' '; c < 127; c++, x += gTomThumb.getWidth() + 1){
-            if(x > 124){
-                x = 0;
-                y += gTomThumb.getHeight();
-            }
-            gTomThumb.render(x,y,c);
-        }
+        SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
+        SDL_RenderClear(renderer);
+        
+        term->render(0,0);
 
-        SDL_RenderPresent(gRenderer);
+        SDL_RenderPresent(renderer);
     }
 }

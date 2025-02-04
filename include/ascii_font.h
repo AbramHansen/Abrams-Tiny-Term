@@ -16,8 +16,9 @@ class AsciiFont{
 
         SDL_Texture* createCharacterTexture(std::vector<std::string>);
     public:
-        AsciiFont(std::string bdfFilepath, int paddingX = 1, int paddingY = 0);
+        AsciiFont(int paddingX = 1, int paddingY = 0);
         ~AsciiFont();
+        void setFilepath(std::string filepath);
         void setRenderer(SDL_Renderer* renderer);
         bool load(); //returns false if load is unsuccessful
         int getWidth();

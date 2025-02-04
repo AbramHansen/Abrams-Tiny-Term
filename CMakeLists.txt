@@ -12,11 +12,13 @@ find_package(SDL3 REQUIRED CONFIG)
 
 set(Headers
     include/ascii_font.h
+    include/terminal.h
 )
 
 set(Sources
     src/main.cpp
     src/ascii_font.cpp
+    src/terminal.cpp
 )
 
 add_executable(${Name} ${Headers} ${Sources})
