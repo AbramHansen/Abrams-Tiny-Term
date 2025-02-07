@@ -181,8 +181,10 @@ void Terminal::update(){
     char buffer[100];
     ssize_t bytesRead = read(masterFD, buffer, sizeof(buffer));
     if (bytesRead > 0){
-        SDL_Log("-->");
         write(STDOUT_FILENO, buffer, bytesRead);
-        SDL_Log("<--\n");
     }
+}
+
+void Terminal::sendChar(char character){
+    write(masterFD, &character, 1);
 }

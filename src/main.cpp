@@ -9,6 +9,7 @@ bool init();
 void mainLoop();
 void close();
 bool handleEvent(SDL_Event event);
+char getAsciiCode(SDL_Keycode keycode);
 
 int windowWidth = 128;
 int windowHeight = 64;
@@ -89,17 +90,72 @@ void mainLoop(){
     }
 }
 
+char currentlyPressed = -1;
+int timeSincePressedMS = 0;
+
 bool handleEvent(SDL_Event event){
     switch (event.type){
         case SDL_EVENT_WINDOW_RESIZED:
             {
-            int newWidth, newHeight;
-            if(!SDL_GetWindowSize(window, &newWidth, &newHeight))
-                return false;
-            term->updateDimensions(newWidth, newHeight);
-            break;
+                int newWidth, newHeight;
+                if(!SDL_GetWindowSize(window, &newWidth, &newHeight))
+                    return false;
+                term->updateDimensions(newWidth, newHeight);
+                break;
             }
+        case SDL_EVENT_KEY_DOWN:
+            {
+                currentlyPressed = -1;
+
+                if(event.key.key <= 0xb1){
+                    if(SDL_GetModState() & SDL_KMOD_ALT)
+                        term->sendChar('\e');
+                    term->sendChar(getAsciiCode(event.key.key));
+                }else{
+                    SDL_Log("GET ESCAPE SEQUENCE\n"); //TODO somehow ingnore modifiers
+                }
+            }
+            break;
     }
     return true;
+}
+
+char getAsciiCode(SDL_Keycode keycode){
+    char asciiCode = keycode;
+    SDL_Keymod modifiers = SDL_GetModState();
+
+    //handle CAPS LOCK
+    if(modifiers & SDL_KMOD_CAPS && asciiCode >= 'a' && asciiCode <= 'z') asciiCode -= 32;
+    
+    //handle SHIFT
+    if(modifiers & SDL_KMOD_SHIFT){
+        if(asciiCode >= 'a' && asciiCode <= 'z') asciiCode -= 32;
+        else if(asciiCode == '`') asciiCode = '~';
+        else if(asciiCode == '1') asciiCode = '!';
+        else if(asciiCode == '2') asciiCode = '@';
+        else if(asciiCode == '3') asciiCode = '#';
+        else if(asciiCode == '4') asciiCode = '$';
+        else if(asciiCode == '5') asciiCode = '%';
+        else if(asciiCode == '6') asciiCode = '^';
+        else if(asciiCode == '7') asciiCode = '&';
+        else if(asciiCode == '8') asciiCode = '*';
+        else if(asciiCode == '9') asciiCode = '(';
+        else if(asciiCode == '0') asciiCode = ')';
+        else if(asciiCode == '-') asciiCode = '_';
+        else if(asciiCode == '=') asciiCode = '+';
+        else if(asciiCode == '[') asciiCode = '{';
+        else if(asciiCode == ']') asciiCode = '}';
+        else if(asciiCode == '\\') asciiCode = '|';
+        else if(asciiCode == ';') asciiCode = ':';
+        else if(asciiCode == '\'') asciiCode = '\"';
+        else if(asciiCode == ',') asciiCode = '<';
+        else if(asciiCode == '.') asciiCode = '>';
+        else if(asciiCode == '/') asciiCode = '?';
+    }
+
+    //handle CTRL
+    if(modifiers & SDL_KMOD_CTRL) asciiCode ^= 0b01100000;
+        
+    return asciiCode;
 }
 

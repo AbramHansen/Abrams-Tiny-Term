@@ -39,4 +39,5 @@ class Terminal{
         bool render(int x = 0, int y = 0);
         void setPadding(unsigned int x, unsigned int y);
         bool updateDimensions(int newWidth, int newHeight);
+        void sendChar(char character);
 };
