@@ -12,11 +12,10 @@ class AsciiFont{
         //offset ascii code by -32 to get array index
         std::array<SDL_Texture*, 95> characters;
         int width, height;
-        int paddingX, paddingY;
 
         SDL_Texture* createCharacterTexture(std::vector<std::string>);
     public:
-        AsciiFont(int paddingX = 1, int paddingY = 0);
+        AsciiFont();
         ~AsciiFont();
         void setFilepath(std::string filepath);
         void setRenderer(SDL_Renderer* renderer);

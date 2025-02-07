@@ -2,6 +2,11 @@
 #include <SDL3/SDL.h>
 #include <string>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/wait.h>
 
 #include "ascii_font.h"
 
@@ -15,7 +20,10 @@ class Terminal{
 
         SDL_Texture* renderTarget;
         SDL_Renderer* renderer;
-
+        
+        int masterFD, slaveFD;
+        pid_t childPID;
+        bool initPTY(std::string shell);
     public:
         Terminal(
                 SDL_Renderer* renderer,
@@ -24,7 +32,7 @@ class Terminal{
                 std::string fontPath = "../media/fonts/tom-thumb.bdf"
                 );
         ~Terminal();
-        bool init();
+        bool init(std::string shell = "sh");
         void update();
         bool render(int x = 0, int y = 0);
 };

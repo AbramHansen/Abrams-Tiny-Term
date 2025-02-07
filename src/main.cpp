@@ -44,7 +44,7 @@ bool init(){
     }
 
     term = new Terminal(renderer, windowWidth, windowHeight);
-    if(!term->init()){
+    if(!term->init("bash")){
         SDL_Log("Failed to initialize terminal!\n");
         return false;
     }
@@ -77,6 +77,7 @@ void mainLoop(){
         SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
         SDL_RenderClear(renderer);
         
+        term->update();
         term->render(0,0);
 
         SDL_RenderPresent(renderer);

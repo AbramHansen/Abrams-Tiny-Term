@@ -1,9 +1,7 @@
 #include "../include/ascii_font.h"
 
-AsciiFont::AsciiFont(int paddingX, int paddingY){
+AsciiFont::AsciiFont(){
     this->renderer = nullptr;
-    this->paddingX = paddingX;
-    this->paddingY = paddingY;
     this->width = 0;
     this->height = 0;
 }
@@ -48,7 +46,9 @@ SDL_Texture* AsciiFont::createCharacterTexture(std::vector<std::string> characte
                 pixelData.push_back(0xFF);
                 pixelData.push_back(0xFF);
                 pixelData.push_back(0xFF);
+                pixelData.push_back(0xFF);
             } else {
+                pixelData.push_back(0x00);
                 pixelData.push_back(0x00);
                 pixelData.push_back(0x00);
                 pixelData.push_back(0x00);
@@ -57,7 +57,7 @@ SDL_Texture* AsciiFont::createCharacterTexture(std::vector<std::string> characte
     }
     
     SDL_Surface* characterSurface;
-    if(!(characterSurface = SDL_CreateSurfaceFrom(width, height, SDL_PIXELFORMAT_RGB24, pixelData.data(), width * 3))){
+    if(!(characterSurface = SDL_CreateSurfaceFrom(width, height, SDL_PIXELFORMAT_RGBA32, pixelData.data(), width * 4))){
         SDL_Log("Unable to create character surface from pixel data: %s\n", SDL_GetError());
     }
     
