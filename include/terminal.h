@@ -12,11 +12,12 @@
 
 class Terminal{
     private:
-        int screenWidth;
-        int screenHeight;
+        int pixelWidth, pixelHeight;
+        int columns, rows;
         bool initialized;
 
         AsciiFont font;
+        unsigned int paddingX, paddingY;
 
         SDL_Texture* renderTarget;
         SDL_Renderer* renderer;
@@ -24,15 +25,18 @@ class Terminal{
         int masterFD, slaveFD;
         pid_t childPID;
         bool initPTY(std::string shell);
+        bool initFont();
     public:
         Terminal(
                 SDL_Renderer* renderer,
                 int width = 128,
-                int height = 64,
+                int height = 128,
                 std::string fontPath = "../media/fonts/tom-thumb.bdf"
                 );
         ~Terminal();
         bool init(std::string shell = "sh");
         void update();
         bool render(int x = 0, int y = 0);
+        void setPadding(unsigned int x, unsigned int y);
+        bool updateDimensions(int newWidth, int newHeight);
 };

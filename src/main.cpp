@@ -8,6 +8,7 @@
 bool init();
 void mainLoop();
 void close();
+bool handleEvent(SDL_Event event);
 
 int windowWidth = 128;
 int windowHeight = 64;
@@ -64,14 +65,18 @@ void close(){
 void mainLoop(){
     bool quit{false};
 
-    SDL_Event e;
-    SDL_zero(e);
+    SDL_Event event;
+    SDL_zero(event);
 
     while(!quit){
         //get event data
-        while(SDL_PollEvent(&e)){
-            if(e.type == SDL_EVENT_QUIT)
+        while(SDL_PollEvent(&event)){
+            if(event.type == SDL_EVENT_QUIT){
                 quit = true;
+            } else {
+                if(!handleEvent(event))
+                    SDL_Log("Error handling event: %i\n", event.type);
+            }
         }
         
         SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
@@ -83,3 +88,18 @@ void mainLoop(){
         SDL_RenderPresent(renderer);
     }
 }
+
+bool handleEvent(SDL_Event event){
+    switch (event.type){
+        case SDL_EVENT_WINDOW_RESIZED:
+            {
+            int newWidth, newHeight;
+            if(!SDL_GetWindowSize(window, &newWidth, &newHeight))
+                return false;
+            term->updateDimensions(newWidth, newHeight);
+            break;
+            }
+    }
+    return true;
+}
+

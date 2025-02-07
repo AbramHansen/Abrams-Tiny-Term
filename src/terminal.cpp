@@ -1,11 +1,13 @@
 #include "../include/terminal.h"
 
 Terminal::Terminal(SDL_Renderer* renderer, int width, int height, std::string fontPath)
-    : screenWidth(width),
-    screenHeight(height),
+    : pixelWidth(width),
+    pixelHeight(height),
     initialized(false),
     renderTarget(nullptr),
-    renderer(renderer)
+    renderer(renderer),
+    paddingX(1),
+    paddingY(0)
 {
     font.setFilepath(fontPath);
 }
@@ -67,8 +69,56 @@ bool Terminal::initPTY(std::string shell){
     return true;
 }
 
+bool Terminal::initFont(){
+    font.setRenderer(renderer);
+
+    if(!font.load())
+        return false;
+
+    return true;
+}
+
+bool Terminal::updateDimensions(int newWidth, int newHeight){
+    pixelWidth = newWidth;
+    pixelHeight = newHeight;
+
+    columns = (pixelWidth + paddingX) / (font.getWidth() + paddingX);
+    rows = (pixelHeight + paddingY) / (font.getHeight() + paddingY);
+
+    SDL_Log("New column size: %i\n", columns);
+    SDL_Log("New row size: %i\n", rows);
+
+    //TODO could break if not initialized but needs to be called from init method
+    //change the size of the pty
+    struct winsize ws;
+    ws.ws_col = columns;
+    ws.ws_row = rows;
+    if(ioctl(masterFD, TIOCSWINSZ, &ws) == -1)
+        return false;
+
+    //let the application running in the terminal know there was a change
+    if(kill(childPID, SIGWINCH) == -1)
+        return false;
+
+    //update render target texture
+    if(!(renderTarget = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_TARGET, pixelWidth, pixelHeight))){
+        SDL_Log("Unable to update render target texture: %s\n", SDL_GetError());
+        return false;
+    }
+   
+    return true;
+}
+
+void Terminal::setPadding(unsigned int x, unsigned int y){
+    paddingX = x;
+    paddingY = y;
+    
+    if(initialized)
+        updateDimensions(pixelWidth, pixelHeight);
+}
+
 bool Terminal::init(std::string shell){
-    if(!(renderTarget = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_TARGET, screenWidth, screenHeight))){
+    if(!(renderTarget = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_TARGET, pixelWidth, pixelHeight))){
         SDL_Log("Unable to create render target texture: %s\n", SDL_GetError());
         return false;
     }
@@ -83,8 +133,15 @@ bool Terminal::init(std::string shell){
         return false;
     }
 
-    font.setRenderer(renderer);
-    font.load();
+    if(!initFont()){
+        SDL_Log("Could not initialize font!\n");
+        return false;
+    }
+
+    if(!updateDimensions(pixelWidth, pixelHeight)){
+        SDL_Log("Could not update terminal dimensions!\n");
+        return false;
+    }
 
     initialized = true;
     return true;
@@ -111,7 +168,7 @@ bool Terminal::render(int x, int y){
         return false;
     }
     
-    SDL_FRect destinationRect = {x,y, static_cast<float>(screenWidth), static_cast<float>(screenHeight)};
+    SDL_FRect destinationRect = {x,y, static_cast<float>(pixelWidth), static_cast<float>(pixelHeight)};
     if(!SDL_RenderTexture(renderer, renderTarget, nullptr, &destinationRect)){
         SDL_Log("Error rendering terminal texture to window: %s\n", SDL_GetError());
         return false;
