@@ -40,4 +40,5 @@ class Terminal{
         void setPadding(unsigned int x, unsigned int y);
         bool updateDimensions(int newWidth, int newHeight);
         void sendChar(char character);
+        void sendSequence(const std::string& sequence);
 };

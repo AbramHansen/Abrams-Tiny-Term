@@ -188,3 +188,7 @@ void Terminal::update(){
 void Terminal::sendChar(char character){
     write(masterFD, &character, 1);
 }
+
+void Terminal::sendSequence(const std::string& sequence){
+    write(masterFD, sequence.c_str(), sequence.length());
+}
