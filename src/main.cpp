@@ -14,8 +14,6 @@ std::string getCodeSequence(SDL_Keycode keycode);
 void sendAsciiCharacter(SDL_Keycode keycode);
 void handleKeypadInput(SDL_Keycode keycode);
 
-int windowWidth = 128;
-int windowHeight = 128;
 std::string windowTitle = "Abram's Tiny Term";
 
 SDL_Window* window{nullptr};
@@ -43,16 +41,18 @@ bool init(){
         return false;
     }
 
-    if(!SDL_CreateWindowAndRenderer(windowTitle.c_str(), windowWidth, windowHeight, 0, &window, &renderer)){
+    if(!SDL_CreateWindowAndRenderer(windowTitle.c_str(), 0, 0, 0, &window, &renderer)){
         SDL_Log("Window or renderer could not be created! SDL error: %s\n", SDL_GetError());
         return false;
     }
 
-    term = new Terminal(renderer, windowWidth, windowHeight);
+    term = new Terminal(renderer);
     if(!term->init("bash")){
         SDL_Log("Failed to initialize terminal!\n");
         return false;
     }
+
+    SDL_SetWindowSize(window, term->getPixelWidth(), term->getPixelHeight());
 
     return true;
 }

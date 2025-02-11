@@ -1,16 +1,14 @@
 #include "../include/terminal.h"
 
-Terminal::Terminal(SDL_Renderer* renderer, int width, int height, std::string fontPath)
-    : pixelWidth(width),
-    pixelHeight(height),
+Terminal::Terminal(SDL_Renderer* renderer)
+    : pixelWidth(0),
+    pixelHeight(0),
     initialized(false),
     renderTarget(nullptr),
     renderer(renderer),
     paddingX(1),
     paddingY(0)
-{
-    font.setFilepath(fontPath);
-}
+{}
 
 Terminal::~Terminal(){
     SDL_DestroyTexture(renderTarget);
@@ -70,12 +68,18 @@ bool Terminal::initPTY(std::string shell){
 }
 
 bool Terminal::initFont(){
+    font.setFilepath(fontPath);
     font.setRenderer(renderer);
 
     if(!font.load())
         return false;
 
     return true;
+}
+
+void Terminal::setPixelDimensions(){
+    pixelWidth = columns * (font.getWidth() + paddingX);
+    pixelHeight = rows * (font.getHeight() + paddingY);
 }
 
 bool Terminal::updateDimensions(int newWidth, int newHeight){
@@ -118,6 +122,18 @@ void Terminal::setPadding(unsigned int x, unsigned int y){
 }
 
 bool Terminal::init(std::string shell){
+    if(!loadConfig()){
+        SDL_Log("Could not load config!\n");
+        return false;
+    }
+
+    if(!initFont()){
+        SDL_Log("Could not initialize font!\n");
+        return false;
+    }
+
+    setPixelDimensions();
+
     if(!(renderTarget = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_TARGET, pixelWidth, pixelHeight))){
         SDL_Log("Unable to create render target texture: %s\n", SDL_GetError());
         return false;
@@ -130,16 +146,6 @@ bool Terminal::init(std::string shell){
 
     if(!initPTY(shell)){
         SDL_Log("Could not initialize PTY!\n");
-        return false;
-    }
-
-    if(!initFont()){
-        SDL_Log("Could not initialize font!\n");
-        return false;
-    }
-
-    if(!updateDimensions(pixelWidth, pixelHeight)){
-        SDL_Log("Could not update terminal dimensions!\n");
         return false;
     }
 
@@ -191,4 +197,121 @@ void Terminal::sendChar(char character){
 
 void Terminal::sendSequence(const std::string& sequence){
     write(masterFD, sequence.c_str(), sequence.length());
+}
+
+bool Terminal::loadParametersFromFile(std::string filepath, std::unordered_map<std::string, std::string> &parameters){
+    std::ifstream file(filepath);
+    if(!file.is_open()){
+        SDL_Log("Unable to open config file: %s\n", filepath.c_str());
+        return false;
+    }
+
+    std::string line;
+    while(std::getline(file, line)){
+        if(line.size() < 4) continue;
+        if(line[0] == '#') continue; //comment
+                                     
+        std::string parameter = "";
+        std::string value = "";
+
+        int i;
+        //get parameter
+        for(i = 0; i < line.size(); i++){
+            if(line[i] == ':'){
+                i++;
+                break;
+            }
+
+            if(line[i] != ' ') parameter += line[i];
+        }
+
+        //get value
+        for(; i < line.size(); i++){
+            if(line[i] != ' ') value += line[i];
+        }
+
+        if(parameter.size() > 0 && value.size() > 0){
+            parameters[parameter] = value;
+        }
+    }
+
+    file.close();
+
+    return true;
+}
+
+static int safeStoi(const std::string& string, int base, int defaultValue = 0){
+    try {
+        int returnValue = stoi(string, nullptr, base);
+        return returnValue;
+    } catch (const std::invalid_argument&) {
+        SDL_Log("Error converting %s to an integer!\n", string.c_str());
+        return defaultValue;
+    } catch (const std::out_of_range&) {
+        SDL_Log("Error %s is too large or small\n", string.c_str());
+        return defaultValue;
+    }
+}
+
+
+bool Terminal::loadConfig(){
+    std::unordered_map<std::string, std::string> parameters;
+    std::string defaultConfigFilepath = "../media/defaults.conf";
+    if(!loadParametersFromFile(defaultConfigFilepath, parameters))
+        return false;
+
+    //set fontPath
+    if (parameters.find("font") != parameters.end())
+        fontPath = "../media/fonts/" + parameters["font"] + ".bdf";
+    else
+        fontPath = "../media/fonts/tom-thumb.bdf";
+
+    //load theme
+    std::unordered_map<std::string, std::string> colors;
+    if (parameters.find("theme") != parameters.end()){
+        std::string themePath = "../media/themes/" + parameters["theme"];
+        if(!loadParametersFromFile(themePath, colors))
+            return false;
+
+        for(int i = 0; i < 16; i++){
+            std::string color = "color" + std::to_string(i);
+            if(colors.find(color) != colors.end()){
+                theme[i] = safeStoi(colors[color], 16);
+            }
+        }
+    }
+
+    //set columns and rows
+    if (parameters.find("columns") != parameters.end())
+        columns = safeStoi(parameters["columns"], 10, 32);
+    else
+        columns = 32;
+
+    if (parameters.find("rows") != parameters.end())
+        rows = safeStoi(parameters["rows"], 10, 10);
+    else
+        rows = 10;
+
+    //set max buffer lines
+    if (parameters.find("buffer_lines") != parameters.end())
+        bufferLines = safeStoi(parameters["buffer_lines"], 1000);
+    else
+        bufferLines = 1000;
+
+    //TODO add check for user config file in ~/.config/tiny-term
+    return true;
+}
+
+int Terminal::getPixelWidth(){
+    if(initialized)
+        return pixelWidth;
+    else
+        return -1;
+}
+
+int Terminal::getPixelHeight(){
+    if(initialized)
+        return pixelHeight;
+    else
+        return -1;
 }
