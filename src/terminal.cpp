@@ -7,7 +7,14 @@ Terminal::Terminal(SDL_Renderer* renderer)
     renderTarget(nullptr),
     renderer(renderer),
     paddingX(1),
-    paddingY(0)
+    paddingY(0),
+    cursorColumn(0),
+    cursorRow(0),
+    ptyOutputState(NORMAL_TEXT),
+    currentCSISequence(""),
+    currentOSCSequence(""),
+    currentDCSSequence(""),
+    tabWidth(8)
 {}
 
 Terminal::~Terminal(){
@@ -149,6 +156,11 @@ bool Terminal::init(std::string shell){
         return false;
     }
 
+    Line line0 = {0,"Hello World!"};
+    Line line1 = {4,"Line 4! wait wait wait, but if I keep typing then the text should eventually wrap to more and more lines!"};
+    lines.push_back(line0);
+    lines.push_back(line1);
+
     initialized = true;
     return true;
 }
@@ -164,17 +176,14 @@ bool Terminal::render(int x, int y){
         return false;
     }
 
-    //TODO make own function
-    //draw the text here
-    font.render(0,0,'A');
-    //end draw text
-    
+    drawLines(); 
+
     if(!SDL_SetRenderTarget(renderer, nullptr)){
         SDL_Log("Error setting render target back to the window: %s\n", SDL_GetError());
         return false;
     }
     
-    SDL_FRect destinationRect = {x,y, static_cast<float>(pixelWidth), static_cast<float>(pixelHeight)};
+    SDL_FRect destinationRect = {static_cast<float>(x),static_cast<float>(y), static_cast<float>(pixelWidth), static_cast<float>(pixelHeight)};
     if(!SDL_RenderTexture(renderer, renderTarget, nullptr, &destinationRect)){
         SDL_Log("Error rendering terminal texture to window: %s\n", SDL_GetError());
         return false;
@@ -184,10 +193,130 @@ bool Terminal::render(int x, int y){
 }
 
 void Terminal::update(){
-    char buffer[100];
+    const int BUFF_SIZE = 256;
+    char buffer[BUFF_SIZE];
     ssize_t bytesRead = read(masterFD, buffer, sizeof(buffer));
     if (bytesRead > 0){
         write(STDOUT_FILENO, buffer, bytesRead);
+        for(int i = 0; i < bytesRead; i++){
+            /* sequence handling specifically must come before checking for '\e' 
+             * this is due to OSI and DCS codes potentially being terminated with 0x1B 0x5C.
+             */
+            if(ptyOutputState == CSI_SEQUENCE){
+                addToCSISequence(buffer[i]);
+            }else if(ptyOutputState == OSC_SEQUENCE){
+                addToOSCSequence(buffer[i]);
+            }else if(ptyOutputState == DCS_SEQUENCE){
+                addToDCSSequence(buffer[i]);           
+            }else if(buffer[i] == '\e'){
+                ptyOutputState = ESCAPE_START;
+            }else if(ptyOutputState == ESCAPE_START){
+                // determine what kind of escape sequence it is
+                if(buffer[i] == '['){
+                    ptyOutputState = CSI_SEQUENCE;
+                }else if(buffer[i] == ']'){
+                    ptyOutputState = OSC_SEQUENCE;
+                }else if(buffer[i] == 'P'){
+                    ptyOutputState = DCS_SEQUENCE;
+                }else{ //single character sequence
+                    handleSingleCharacterSequence(buffer[i]);
+                    ptyOutputState = NORMAL_TEXT;
+                }
+
+            }else if(ptyOutputState == NORMAL_TEXT){
+                if(buffer[i] < 32 || buffer[i] > 126){
+                    handleAsciiCode(buffer[i]);
+                }else{
+                    
+                }
+            }
+
+            /*if(buffer[i] == '\n' || buffer[i] == '\r'){ //newline
+                lineIndex++;
+                if(lineIndex >= maxLines)
+                    lineIndex = 0;
+            }else if(buffer[i] == '\b'){ //backspace
+                lines[lineIndex].pop_back();
+            }else{ // append output to line
+                lines[lineIndex] += buffer[i];
+            }*/
+        }
+    }
+}
+
+void Terminal::handleAsciiCode(char character){
+    return;
+}
+
+void Terminal::handleSingleCharacterSequence(char command){
+    ptyOutputState = NORMAL_TEXT;
+}
+
+static std::vector<unsigned int> parseParameters(const std::string& input) {
+    std::vector<unsigned int> parameters;
+    std::istringstream inputStream(input);
+    std::string token;
+
+    while (std::getline(inputStream, token, ';')) {
+        if (token.empty()) {
+            parameters.push_back(0); // Default value for empty parameters
+        } else {
+            try {
+                parameters.push_back(std::stoi(token));
+            } catch (const std::invalid_argument&) {
+                parameters.push_back(0); // Invalid -> Default to 0
+            } catch (const std::out_of_range&) {
+                parameters.push_back(0); // Out of range -> Default to 0
+            }
+        }
+    }
+
+    if(!input.empty() && input.back() == ';')
+        parameters.push_back(0);
+
+    return parameters;
+}
+
+void Terminal::addToCSISequence(char character){
+    if(character >= '@' && character <= '~'){
+        if(!currentCSISequence.empty()){
+            if(currentCSISequence[0] >= '0' && currentCSISequence[0] <= '9'){
+                std::vector<unsigned int> parameters = parseParameters(currentCSISequence);
+                handleCSISequence(parameters, character);
+            }else if(currentCSISequence[0] == '?'){ // TODO ignored for now
+                // handle private modes
+            }else if(currentCSISequence[0] == '='){
+                // handle set mode sequences
+            }
+        }
+        ptyOutputState = NORMAL_TEXT;
+        currentCSISequence = "";
+    }else{
+        currentCSISequence += character;
+    }
+}
+
+void Terminal::handleCSISequence(std::vector<unsigned int> args, char command){
+    return;
+}
+
+void Terminal::addToOSCSequence(char character){
+    if((character == '\\' && !currentOSCSequence.empty() && currentOSCSequence.back() == '\e') || character == '\a'){
+        // TODO impliment
+        ptyOutputState = NORMAL_TEXT;
+        currentOSCSequence = "";
+    }else{
+        currentOSCSequence += character;
+    }
+}
+
+void Terminal::addToDCSSequence(char character){
+    if(character == '\\' && !currentOSCSequence.empty() && currentOSCSequence.back() == '\e'){
+        // TODO impliment
+        ptyOutputState = NORMAL_TEXT;
+        currentOSCSequence = "";
+    }else{
+        currentDCSSequence += character;
     }
 }
 
@@ -253,7 +382,6 @@ static int safeStoi(const std::string& string, int base, int defaultValue = 0){
     }
 }
 
-
 bool Terminal::loadConfig(){
     std::unordered_map<std::string, std::string> parameters;
     std::string defaultConfigFilepath = "../media/defaults.conf";
@@ -281,6 +409,12 @@ bool Terminal::loadConfig(){
         }
     }
 
+    //set maxScrollbackLines
+    if (parameters.find("max_lines") != parameters.end())
+        maxScrollbackLines = safeStoi(parameters["scrollback_lines"], 10, 256);
+    else
+        maxScrollbackLines = 256;
+
     //set columns and rows
     if (parameters.find("columns") != parameters.end())
         columns = safeStoi(parameters["columns"], 10, 32);
@@ -291,14 +425,13 @@ bool Terminal::loadConfig(){
         rows = safeStoi(parameters["rows"], 10, 10);
     else
         rows = 10;
-
-    //set max buffer lines
-    if (parameters.find("buffer_lines") != parameters.end())
-        bufferLines = safeStoi(parameters["buffer_lines"], 1000);
+    
+    if (parameters.find("tab_width") != parameters.end())
+        tabWidth = safeStoi(parameters["tab_width"], 10, 8);
     else
-        bufferLines = 1000;
+        tabWidth = 8;
 
-    //TODO add check for user config file in ~/.config/tiny-term
+    // TODO add check for user config file in ~/.config/tiny-term
     return true;
 }
 
@@ -314,4 +447,24 @@ int Terminal::getPixelHeight(){
         return pixelHeight;
     else
         return -1;
+}
+
+bool Terminal::drawCharacter(int column, int row, char character){
+    if(column >= columns || row >= rows)
+        return false;
+
+    font.render(column * (font.getWidth() + paddingX), row * (font.getHeight() + paddingY), character);
+    return true;
+}
+
+void Terminal::drawLines(){
+    for(Line line : lines){
+        if(!line.text.empty()){
+            for(int i = 0; i < line.text.length(); i++){
+                int characterRow = line.row + (i / columns);
+                int characterColumn = i % columns;
+                drawCharacter(characterColumn, characterRow, line.text[i]);
+            }
+        }
+    }
 }

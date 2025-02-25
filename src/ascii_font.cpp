@@ -161,7 +161,7 @@ bool AsciiFont::render(float x, float y, char character){
         }
 
         if(!SDL_RenderTexture(renderer, characters[character - 32], nullptr, &destination)){
-            SDL_Log("Error rendering chacter %c: %s\n", character, SDL_GetError());
+            SDL_Log("Error rendering character %c: %s\n", character, SDL_GetError());
             return false;
         }
     } else {
