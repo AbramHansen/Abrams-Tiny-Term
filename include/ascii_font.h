@@ -5,15 +5,23 @@
 #include <fstream>
 #include <vector>
 
+struct BoundingBox{
+    int width;
+    int height;
+    int xOffset;
+    int yOffset;
+};
+
 class AsciiFont{
     private:
         std::string bdfFilepath;
         SDL_Renderer* renderer;
         //offset ascii code by -32 to get array index
         std::array<SDL_Texture*, 95> characters;
-        int width, height;
 
-        SDL_Texture* createCharacterTexture(std::vector<std::string>);
+        BoundingBox fontBoundingBox;
+        
+        SDL_Texture* createCharacterTexture(std::vector<std::string> characterMap, BoundingBox BBX);
     public:
         AsciiFont();
         ~AsciiFont();

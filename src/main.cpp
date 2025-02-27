@@ -51,6 +51,8 @@ bool init(){
         return false;
     }
 
+    term->setPadding(0,2);
+
     SDL_SetWindowSize(window, term->getPixelWidth(), term->getPixelHeight());
 
     return true;

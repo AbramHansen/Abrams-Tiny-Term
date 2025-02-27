@@ -6,7 +6,7 @@ Terminal::Terminal(SDL_Renderer* renderer)
     initialized(false),
     renderTarget(nullptr),
     renderer(renderer),
-    paddingX(1),
+    paddingX(0),
     paddingY(0),
     cursorColumn(0),
     cursorRow(0),
@@ -156,10 +156,8 @@ bool Terminal::init(std::string shell){
         return false;
     }
 
-    Line line0 = {0,"Hello World!"};
-    Line line1 = {4,"Line 4! wait wait wait, but if I keep typing then the text should eventually wrap to more and more lines!"};
-    lines.push_back(line0);
-    lines.push_back(line1);
+    Line initialLine = {0, ""};
+    lines.push_back(initialLine);
 
     initialized = true;
     return true;
@@ -227,7 +225,7 @@ void Terminal::update(){
                 if(buffer[i] < 32 || buffer[i] > 126){
                     handleAsciiCode(buffer[i]);
                 }else{
-                    
+                    lines.back().text.push_back(buffer[i]);
                 }
             }
 
@@ -245,7 +243,14 @@ void Terminal::update(){
 }
 
 void Terminal::handleAsciiCode(char character){
-    return;
+    if(character == '\r'){
+        int row = lines.back().row;
+        row += lines.back().text.length() / columns;
+        if(lines.back().text.length() % columns)
+            row++;
+        Line newline = {row, ""};
+        lines.push_back(newline);
+    }
 }
 
 void Terminal::handleSingleCharacterSequence(char command){
