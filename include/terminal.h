@@ -61,6 +61,8 @@ class Terminal{
 
         int cursorColumn, cursorRow;
 
+        std::string shell;
+
         AsciiFont font;
         std::string fontPath;
         unsigned int paddingX, paddingY;
@@ -73,7 +75,7 @@ class Terminal{
         int masterFD, slaveFD;
         pid_t childPID;
 
-        bool initPTY(std::string shell);
+        bool initPTY();
         bool initFont();
         void setPixelDimensions();
         bool loadConfig();

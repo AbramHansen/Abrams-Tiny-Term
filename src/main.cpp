@@ -46,7 +46,7 @@ bool init(){
     }
 
     term = new Terminal(renderer);
-    if(!term->init("bash")){
+    if(!term->init()){
         SDL_Log("Failed to initialize terminal!\n");
         return false;
     }

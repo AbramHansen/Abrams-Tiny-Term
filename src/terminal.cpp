@@ -26,7 +26,7 @@ Terminal::~Terminal(){
     }
 }
 
-bool Terminal::initPTY(std::string shell){
+bool Terminal::initPTY(){
     //Get file descriptors
     masterFD = posix_openpt(O_RDWR | O_NOCTTY);
     if(masterFD == -1)
@@ -42,7 +42,7 @@ bool Terminal::initPTY(std::string shell){
 
     slaveFD = open(slaveName, O_RDWR);
 
-    //fork, child process replaces itself with bash
+    //fork, child process replaces itself with the configured shell
     pid_t pid;
     pid = fork();
 
@@ -151,7 +151,7 @@ bool Terminal::init(std::string shell){
         return false;
     }
 
-    if(!initPTY(shell)){
+    if(!initPTY()){
         SDL_Log("Could not initialize PTY!\n");
         return false;
     }
@@ -392,6 +392,12 @@ bool Terminal::loadConfig(){
     std::string defaultConfigFilepath = "../media/defaults.conf";
     if(!loadParametersFromFile(defaultConfigFilepath, parameters))
         return false;
+    
+    // set shell
+    if (parameters.find("shell") != parameters.end())
+        shell = parameters["shell"];
+    else
+        shell = "sh";
 
     //set fontPath
     if (parameters.find("font") != parameters.end())
