@@ -13,6 +13,7 @@
 #include <sstream>
 
 #include "ascii_font.h"
+#include "paths.h"
 
 struct Line{
     int row;
@@ -20,78 +21,79 @@ struct Line{
 };
 
 class Terminal{
-    private:
-        int pixelWidth, pixelHeight;
-        int columns, rows;
-        bool initialized;
+private:
+    int pixelWidth, pixelHeight;
+    int columns, rows;
+    bool initialized;
 
-        std::vector<std::string> scrollBackLines;
-        int maxScrollbackLines;
+    std::vector<std::string> scrollBackLines;
+    int maxScrollbackLines;
 
-        std::vector<Line> lines;
+    std::vector<Line> lines;
 
-        int tabWidth;
+    int tabWidth;
 
-        enum PtyOutputState {
-            NORMAL_TEXT,
-            ESCAPE_START,
-            CSI_SEQUENCE,
-            OSC_SEQUENCE,
-            DCS_SEQUENCE
-        };
-        enum PtyOutputState ptyOutputState;
-        void handleAsciiCode(char command);
-        void handleSingleCharacterSequence(char command);
-        /*
+    enum PtyOutputState {
+        NORMAL_TEXT,
+        ESCAPE_START,
+        CSI_SEQUENCE,
+        OSC_SEQUENCE,
+        DCS_SEQUENCE
+    };
+    enum PtyOutputState ptyOutputState;
+    void handleAsciiCode(char command);
+    void handleSingleCharacterSequence(char command);
+    /*
         These "addTo" functions accumulate characters in their string
         until they determine the sequence is done.
         They then call the handle function, reset ptyOutputState to NORMAL_TEXT,
         and clear their string.
-        */
-        std::string currentCSISequence;
-        void addToCSISequence(char character);
-        void handleCSISequence(std::vector<unsigned int> args, char command);
-        // TODO fully impliment these. They currently just ignore the sequence.
-        std::string currentOSCSequence;
-        void addToOSCSequence(char character);
-        void handleOSCSequence();
-        std::string currentDCSSequence;
-        void addToDCSSequence(char character);
-        void handleDCSSequence();
+    */
+    std::string currentCSISequence;
+    void addToCSISequence(char character);
+    void handleCSISequence(std::vector<unsigned int> args, char command);
+    // TODO fully impliment these. They currently just ignore the sequence.
+    std::string currentOSCSequence;
+    void addToOSCSequence(char character);
+    void handleOSCSequence();
+    std::string currentDCSSequence;
+    void addToDCSSequence(char character);
+    void handleDCSSequence();
 
-        int cursorColumn, cursorRow;
+    int cursorColumn, cursorRow;
 
-        std::string shell;
+    std::string shell;
 
-        AsciiFont font;
-        std::string fontPath;
-        unsigned int paddingX, paddingY;
+    std::string mediaPath;
+    AsciiFont font;
+    std::string fontPath;
+    unsigned int paddingX, paddingY;
 
-        int theme[16];
+    int theme[16];
 
-        SDL_Texture* renderTarget;
-        SDL_Renderer* renderer;
-        
-        int masterFD, slaveFD;
-        pid_t childPID;
+    SDL_Texture* renderTarget;
+    SDL_Renderer* renderer;
 
-        bool initPTY();
-        bool initFont();
-        void setPixelDimensions();
-        bool loadConfig();
-        bool loadParametersFromFile(std::string filepath, std::unordered_map<std::string, std::string> &parameters);
-        bool drawCharacter(int column, int row, char character); //TODO add color
-        void drawLines();
-    public:
-        Terminal(SDL_Renderer* renderer);
-        ~Terminal();
-        bool init(std::string shell = "sh");
-        void update();
-        bool render(int x = 0, int y = 0);
-        void setPadding(unsigned int x, unsigned int y);
-        bool updateDimensions(int newWidth, int newHeight);
-        void sendChar(char character);
-        void sendSequence(const std::string& sequence);
-        int getPixelWidth();
-        int getPixelHeight();
+    int masterFD, slaveFD;
+    pid_t childPID;
+
+    bool initPTY();
+    bool initFont();
+    void setPixelDimensions();
+    bool loadConfig();
+    bool loadParametersFromFile(std::string filepath, std::unordered_map<std::string, std::string> &parameters);
+    bool drawCharacter(int column, int row, char character); //TODO add color
+    void drawLines();
+public:
+    Terminal(SDL_Renderer* renderer);
+    ~Terminal();
+    bool init(std::string shell = "sh");
+    void update();
+    bool render(int x = 0, int y = 0);
+    void setPadding(unsigned int x, unsigned int y);
+    bool updateDimensions(int newWidth, int newHeight);
+    void sendChar(char character);
+    void sendSequence(const std::string& sequence);
+    int getPixelWidth();
+    int getPixelHeight();
 };

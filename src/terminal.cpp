@@ -14,7 +14,9 @@ Terminal::Terminal(SDL_Renderer* renderer)
     currentCSISequence(""),
     currentOSCSequence(""),
     currentDCSSequence(""),
-    tabWidth(8)
+    tabWidth(8),
+    shell("sh"),
+    mediaPath(MEDIA_PATH)
 {}
 
 Terminal::~Terminal(){
@@ -389,7 +391,8 @@ static int safeStoi(const std::string& string, int base, int defaultValue = 0){
 
 bool Terminal::loadConfig(){
     std::unordered_map<std::string, std::string> parameters;
-    std::string defaultConfigFilepath = "../media/defaults.conf";
+    std::string defaultConfigFilepath = mediaPath + "defaults.conf";
+    SDL_Log("%s", defaultConfigFilepath.c_str());
     if(!loadParametersFromFile(defaultConfigFilepath, parameters))
         return false;
     
@@ -401,14 +404,14 @@ bool Terminal::loadConfig(){
 
     //set fontPath
     if (parameters.find("font") != parameters.end())
-        fontPath = "../media/fonts/" + parameters["font"] + ".bdf";
+        fontPath = mediaPath + "fonts/" + parameters["font"] + ".bdf";
     else
-        fontPath = "../media/fonts/tom-thumb.bdf";
+        fontPath = mediaPath + "fonts/tom-thumb.bdf";
 
     //load theme
     std::unordered_map<std::string, std::string> colors;
     if (parameters.find("theme") != parameters.end()){
-        std::string themePath = "../media/themes/" + parameters["theme"];
+        std::string themePath = mediaPath + "themes/" + parameters["theme"];
         if(!loadParametersFromFile(themePath, colors))
             return false;
 

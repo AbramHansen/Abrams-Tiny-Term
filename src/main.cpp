@@ -1,7 +1,9 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <string>
+#include <filesystem>
 
+#include "../include/paths.h"
 #include "../include/terminal.h"
 
 bool init();
@@ -12,6 +14,7 @@ char getAsciiCode(SDL_Keycode keycode);
 std::string getCodeSequence(SDL_Keycode keycode);
 void sendAsciiCharacter(SDL_Keycode keycode);
 void handleKeypadInput(SDL_Keycode keycode);
+bool uninstall();
 
 std::string windowTitle = "Abram's Tiny Term";
 
@@ -20,8 +23,17 @@ SDL_Renderer* renderer{nullptr};
 Terminal* term{nullptr};
 
 int main(int argc, char* args[]){
+    if(argc > 1){
+        std::string arg2 = args[1];
+        if(arg2 == "--uninstall"){
+            if(!uninstall())
+                return 1;
+            return 0;
+        }
+    }
+
     SDL_Log("Starting Abram's Tiny Term\n");
-    
+
     if(!init()){
         SDL_Log("init failure!\n");
         return 1;
@@ -83,10 +95,10 @@ void mainLoop(){
                     SDL_Log("Error handling event: %i\n", event.type);
             }
         }
-        
+
         SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
         SDL_RenderClear(renderer);
-        
+
         term->update();
         term->render(0,0);
 
@@ -126,7 +138,7 @@ char getAsciiCode(SDL_Keycode keycode){
 
     //handle CAPS LOCK
     if(modifiers & SDL_KMOD_CAPS && asciiCode >= 'a' && asciiCode <= 'z') asciiCode -= 32;
-    
+
     //handle SHIFT
     if(modifiers & SDL_KMOD_SHIFT){
         if(asciiCode >= 'a' && asciiCode <= 'z') asciiCode -= 32;
@@ -155,13 +167,13 @@ char getAsciiCode(SDL_Keycode keycode){
 
     //handle CTRL
     if(modifiers & SDL_KMOD_CTRL) asciiCode ^= 0b01100000;
-        
+
     return asciiCode;
 }
 
 std::string getCodeSequence(SDL_Keycode keycode){
     std::string sequence = "";
-    
+
     char modifierCode = '0';
     SDL_Keymod modState = SDL_GetModState();
     bool ctrlPressed = modState & SDL_KMOD_CTRL;
@@ -174,7 +186,7 @@ std::string getCodeSequence(SDL_Keycode keycode){
     else if(ctrlPressed) modifierCode = '5';
     else if(altPressed) modifierCode = '3';
     else if(shiftPressed) modifierCode = '2';
-    
+
     //due to VT100 legacy we handle f1-f4, arrow keys, home, and end differently
     if((keycode >= SDLK_F1 && keycode <= SDLK_F4) || (keycode >= SDLK_HOME && keycode <= SDLK_UP)){
         if(modifierCode == '0'){
@@ -271,4 +283,33 @@ void handleKeypadInput(SDL_Keycode keycode){
     else if(keycode == SDLK_KP_3) term->sendSequence(getCodeSequence(SDLK_PAGEDOWN));
     else if(keycode == SDLK_KP_0) term->sendSequence(getCodeSequence(SDLK_INSERT));
     else if(keycode == SDLK_KP_PERIOD) term->sendSequence(getCodeSequence(SDLK_DELETE));
+}
+
+bool uninstall(){
+    if(!INSTALLED){
+        SDL_Log("Not installed! Debug mode!\n");
+        return false;
+    }
+    std::string mediaPath = MEDIA_PATH;
+    std::string binaryPath = BINARY_PATH;
+
+    try {
+        if(std::filesystem::exists(mediaPath)){
+            std::filesystem::remove_all(mediaPath);
+        }
+    } catch (const std::filesystem::filesystem_error& e) {
+        SDL_Log("Error uninstalling. Try running with sudo.\n");
+        return false;
+    }
+
+    try {
+        if(std::filesystem::exists(binaryPath)){
+            std::filesystem::remove_all(binaryPath);
+        }
+    } catch (const std::filesystem::filesystem_error& e) {
+        SDL_Log("Error uninstalling. Try running with sudo.\n");
+        return false;
+    }
+
+    return true;
 }

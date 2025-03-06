@@ -1,0 +1,3 @@
+#define MEDIA_PATH "@MEDIA_DIR@"
+#define BINARY_PATH "@BINARY_DIR@"
+#define INSTALLED @INSTALLED@
