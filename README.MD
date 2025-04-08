@@ -5,7 +5,7 @@
 A hardware accelerated terminal emulator for Linux.
 Designed for small resolutions and raster fonts.
 
-Code documentation can be found [here.](/docs/documentation.md)
+Code documentation can be found [here.](docs/documentation.md)
 
 [MIT Licence](/LICENCE)
 
